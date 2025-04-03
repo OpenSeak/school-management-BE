@@ -8,8 +8,11 @@ DB_URL = 'postgresql://neondb_owner:npg_gDOPmnz7X4lb@ep-mute-mouse-a5bgalt1-pool
 
 # postgresql credentials
 PGHOST='ep-mute-mouse-a5bgalt1-pooler.us-east-2.aws.neon.tech'
+
 PGDATABASE='neondb'
+
 PGUSER='neondb_owner'
+
 PGPASSWORD='npg_gDOPmnz7X4lb'
 
 
