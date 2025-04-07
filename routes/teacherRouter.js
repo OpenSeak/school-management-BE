@@ -1,8 +1,9 @@
 import express from "express";
-// import { getTeachers } from "../controllers/teacherController.js";
+import { getClassTeacher, getSpecificClassTeacher } from "../controllers/teacherController.js";
 
 const router = express.Router();
 
-// router.get("/", getTeachers);
+router.get("/classteachers", getClassTeacher);
+router.post("/classteacher", getSpecificClassTeacher);
 
 export default router;
