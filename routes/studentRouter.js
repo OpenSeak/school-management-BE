@@ -1,8 +1,9 @@
 import express from "express";
-import { getStudentProfile } from "../controllers/studentController.js";
+import { getStudentProfile, getStudentRoutine } from "../controllers/studentController.js";
 
 const router = express.Router();
 
 router.get("/profile", getStudentProfile);
+router.post("/routine", getStudentRoutine);
 
 export default router;

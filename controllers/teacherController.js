@@ -120,3 +120,192 @@ export const getSpecificClassTeacher = async (req, res) => {
         client.release();
     }
 };
+
+export const getTeacherRoutine = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const {
+            teacherName = '',
+            className = '',
+            section = '',
+            day = '',
+            timeSlot = ''
+        } = req.body || {}; 
+
+        const result = await client.query(`
+            SELECT 
+                tr.id,
+                u.name AS teacher_name,
+                t.specialised_subject AS teacher_subject,
+                tr.day,
+                tr.class,
+                tr.section,
+                tr.time_slot
+            FROM teacher_routine tr
+            JOIN teachers t ON tr.teacher_id = t.id
+            JOIN users u ON t.user_id = u.id
+            WHERE 
+                ($1 = '' OR u.name ILIKE $1)
+                AND ($2 = '' OR tr.class ILIKE $2)
+                AND ($3 = '' OR tr.section ILIKE $3)
+                AND ($4 = '' OR tr.day ILIKE $4)
+                AND ($5 = '' OR tr.time_slot ILIKE $5);
+        `, [
+            `%${teacherName}%`,
+            `%${className}%`,
+            `%${section}%`,
+            `%${day}%`,
+            `%${timeSlot}%`
+        ]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error });
+    } finally {
+        client.release();
+    }
+};
+
+export const getNotes = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const {
+            title = '',
+            givenBy = '',
+            uploadedBy = '',
+            className = '',
+            section = '',
+            subject = ''
+        } = req.body || {};
+
+        const result = await client.query(`
+            SELECT
+                n.title,
+                n.content AS given_by,
+                u.name AS uploaded_by,
+                n.class,
+                n.section,
+                n.subject,
+                n.files,
+                COALESCE(n.created_at::date, CURRENT_DATE) AS date
+            FROM notes n
+            JOIN users u ON n.created_by = u.id
+            WHERE 
+                ($1 = '' OR n.title ILIKE $1) AND
+                ($2 = '' OR n.content ILIKE $2) AND
+                ($3 = '' OR u.name ILIKE $3) AND
+                ($4 = '' OR n.class ILIKE $4) AND
+                ($5 = '' OR n.section ILIKE $5) AND
+                ($6 = '' OR n.subject ILIKE $6)
+        `, [
+            `%${title}%`,
+            `%${givenBy}%`,
+            `%${uploadedBy}%`,
+            `%${className}%`,
+            `%${section}%`,
+            `%${subject}%`
+        ]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching filtered notes:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
+
+export const getFilteredExams = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const {
+            className = '',
+            section = '',
+            examDate = '',
+            subject = '',
+            examDuration = '',
+            examType = ''
+        } = req.body || {};
+
+        const result = await client.query(`
+            SELECT
+                id,
+                class,
+                section,
+                subject,
+                exam_date,
+                exam_duration,
+                exam_type
+            FROM exams
+            WHERE
+                ($1 = '' OR class ILIKE $1)
+                AND ($2 = '' OR section ILIKE $2)
+                AND ($3 = '' OR exam_date::text ILIKE $3)
+                AND ($4 = '' OR subject ILIKE $4)
+                AND ($5 = '' OR exam_duration ILIKE $5)
+                AND ($6 = '' OR exam_type ILIKE $6);
+        `, [
+            `%${className}%`,
+            `%${section}%`,
+            `%${examDate}%`,
+            `%${subject}%`,
+            `%${examDuration}%`,
+            `%${examType}%`
+        ]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching filtered exams:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
+
+export const getAssignments = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const {
+            title = '',
+            subject = '',
+            className = '',
+            section = '',
+            teacherName = ''
+        } = req.body || {};
+
+        const result = await client.query(`
+            SELECT 
+                a.title,
+                a.description,
+                a.subject,
+                a.class,
+                a.section,
+                u.name AS assigned_by,
+                a.due_date,
+                a.file
+            FROM assignments a
+            JOIN teachers t ON a.assigned_by = t.id
+            JOIN users u ON t.user_id = u.id
+            WHERE 
+                ($1 = '' OR a.title ILIKE $1)
+                AND ($2 = '' OR a.subject ILIKE $2)
+                AND ($3 = '' OR a.class ILIKE $3)
+                AND ($4 = '' OR a.section ILIKE $4)
+                AND ($5 = '' OR u.name ILIKE $5);
+        `, [
+            `%${title}%`,
+            `%${subject}%`,
+            `%${className}%`,
+            `%${section}%`,
+            `%${teacherName}%`
+        ]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching assignments:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
