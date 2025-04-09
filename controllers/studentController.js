@@ -117,3 +117,120 @@ export const getStudentPerformance = async (req, res) => {
     }
 };
 
+export const getStudentAttendance = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const {
+            studentName = '',
+            className = '',
+            section = '',
+            date = '',
+            status = '',
+            month = ''
+        } = req.body || {};
+
+        const monthNames = {
+            January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+            July: 7, August: 8, September: 9, October: 10, November: 11, December: 12
+        };
+
+        const monthNumber = monthNames[month] || null;
+
+        const query = `
+            SELECT 
+                u.name AS student_name,
+                s.class,
+                s.section,
+                tu.name AS class_teacher,
+                a.date,
+                a.status
+            FROM attendance a
+            JOIN students s ON a.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            JOIN teachers t ON a.teacher_id = t.id
+            JOIN users tu ON t.user_id = tu.id
+            WHERE 
+                ($1 = '' OR u.name ILIKE $1)
+                AND ($2 = '' OR s.class::TEXT ILIKE $2)
+                AND ($3 = '' OR s.section ILIKE $3)
+                AND ($4 = '' OR a.date::TEXT ILIKE $4)
+                AND ($5 = '' OR a.status ILIKE $5)
+                AND ($6::INT IS NULL OR EXTRACT(MONTH FROM a.date) = $6::INT)
+        `;
+
+        const values = [
+            `%${studentName}%`,
+            `%${className}%`,
+            `%${section}%`,
+            `%${date}%`,
+            `%${status}%`,
+            monthNumber
+        ];
+
+        const result = await client.query(query, values);
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
+
+export const getClassMonthlyAttendance = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const {
+            className = '',
+            section = ''
+        } = req.body || {};
+
+        const query = `
+            SELECT 
+                s.class,
+                s.section,
+                COUNT(*) FILTER (WHERE a.status = 'Present') AS total_present,
+                (
+                    CASE EXTRACT(MONTH FROM a.date)
+                        WHEN 1 THEN 31
+                        WHEN 2 THEN 
+                            CASE 
+                                WHEN EXTRACT(YEAR FROM a.date)::INT % 4 = 0 AND 
+                                     (EXTRACT(YEAR FROM a.date)::INT % 100 != 0 OR EXTRACT(YEAR FROM a.date)::INT % 400 = 0)
+                                THEN 29
+                                ELSE 28
+                            END
+                        WHEN 3 THEN 31
+                        WHEN 4 THEN 30
+                        WHEN 5 THEN 31
+                        WHEN 6 THEN 30
+                        WHEN 7 THEN 31
+                        WHEN 8 THEN 31
+                        WHEN 9 THEN 30
+                        WHEN 10 THEN 31
+                        WHEN 11 THEN 30
+                        WHEN 12 THEN 31
+                    END
+                ) AS monthly_total
+            FROM attendance a
+            JOIN students s ON a.student_id = s.id
+            WHERE 
+                ($1 = '' OR s.class::TEXT ILIKE $1)
+                OR ($2 = '' OR s.section ILIKE $2)
+            GROUP BY s.class, s.section, EXTRACT(MONTH FROM a.date), EXTRACT(YEAR FROM a.date)
+            ORDER BY s.class, s.section;
+        `;
+
+        const result = await client.query(query, [
+            `%${className}%`,
+            `%${section}%`
+        ]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching class monthly attendance:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
