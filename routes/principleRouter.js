@@ -6,7 +6,8 @@ import {
     getParentProfile, 
     getSpecificParentProfile, 
     getSpecificCalendar, 
-    getAllCalendar
+    getAllCalendar,
+    getFinanceReport
 } from "../controllers/principleController.js";
 import { getTeachers } from "../controllers/teacherController.js";
 
@@ -20,5 +21,6 @@ router.get("/parents", getParentProfile);
 router.post("/parent", getSpecificParentProfile)
 router.post("/calendar", getSpecificCalendar);
 router.get("/calendars", getAllCalendar);
+router.post("/finances", getFinanceReport);
 
 export default router;

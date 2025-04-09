@@ -168,3 +168,50 @@ export const getAllCalendar = async (req, res) => {
     }
 };
 
+export const getFinanceReport = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { 
+            name, 
+            class: studentClass, 
+            section,
+            month
+        } = req.body || {};
+
+        const result = await client.query(
+            `SELECT 
+                u.name AS student_name,
+                u.phone AS student_phone,
+                s.class AS student_class,
+                s.section AS student_section,
+                f.total_fee,
+                f.paid_amount,
+                f.due_amount,
+                f.month,
+                f.payment_status,
+                f.penalty,
+                f.expenses
+            FROM finances f
+            JOIN students s ON f.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            WHERE 
+                ($1 = '' OR u.name ILIKE $1) AND
+                ($2 = '' OR s.class = $2) AND
+                ($3 = '' OR s.section = $3) AND
+                ($4 = '' OR f.month ILIKE $4)`,
+            [
+                name ? `%${name}%` : '',
+                studentClass || '',
+                section || '',
+                month ? `%${month}%` : ''
+            ]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching finance report:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    } finally {
+        client.release();
+    }
+};
