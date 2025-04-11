@@ -1,6 +1,5 @@
 import express from "express";
-import { 
-    getClassRepresentatives, 
+import {
     getParentProfile, 
     getSpecificParentProfile,
     getFinanceReport,
@@ -12,7 +11,6 @@ const router = express.Router();
 
 router.post("/students", getStudents);
 router.get("/teachers", getTeachers);
-router.get("/ClassRepresentatives", getClassRepresentatives);
 router.get("/parents", getParentProfile);
 router.post("/parent", getSpecificParentProfile);
 router.post("/finances", getFinanceReport);

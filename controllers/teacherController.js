@@ -167,55 +167,6 @@ export const getTeacherRoutine = async (req, res) => {
     }
 };
 
-export const getNotes = async (req, res) => {
-    const client = await pool.connect();
-    try {
-        const {
-            title = '',
-            givenBy = '',
-            uploadedBy = '',
-            className = '',
-            section = '',
-            subject = ''
-        } = req.body || {};
-
-        const result = await client.query(`
-            SELECT
-                n.title,
-                n.content AS given_by,
-                u.name AS uploaded_by,
-                n.class,
-                n.section,
-                n.subject,
-                n.files,
-                COALESCE(n.created_at::date, CURRENT_DATE) AS date
-            FROM notes n
-            JOIN users u ON n.created_by = u.id
-            WHERE 
-                ($1 = '' OR n.title ILIKE $1) AND
-                ($2 = '' OR n.content ILIKE $2) AND
-                ($3 = '' OR u.name ILIKE $3) AND
-                ($4 = '' OR n.class ILIKE $4) AND
-                ($5 = '' OR n.section ILIKE $5) AND
-                ($6 = '' OR n.subject ILIKE $6)
-        `, [
-            `%${title}%`,
-            `%${givenBy}%`,
-            `%${uploadedBy}%`,
-            `%${className}%`,
-            `%${section}%`,
-            `%${subject}%`
-        ]);
-
-        res.json(result.rows);
-    } catch (error) {
-        console.error("Error fetching filtered notes:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
-    }
-};
-
 export const getFilteredExams = async (req, res) => {
     const client = await pool.connect();
     try {
