@@ -3,22 +3,55 @@ import pool from "../config/db.js";
 export const getStudents = async (req, res) => {
     const client = await pool.connect();
     try {
-        const result = await client.query("SELECT * FROM students");
+        const {
+            name = '',
+            class: studentClass = '',
+            section = '',
+            parent_name = '',
+            admission_number = ''
+        } = req.body || {};
+
+        const query = `
+            SELECT 
+                s.id,
+                s.user_id,
+                u.name AS student_name,
+                u.photo AS student_photo,
+                u.phone AS student_phone,
+                s.admission_number,
+                s.class,
+                s.section,
+                s.parent_name,
+                s.parent_phone,
+                s.parent_email,
+                s.parent_work,
+                s.parent_photo1,
+                s.parent_photo2,
+                s.guardian_photo,
+                s.guardian_phone
+            FROM students s
+            JOIN users u ON s.user_id = u.id
+            WHERE 
+                ($1 = '' OR u.name ILIKE $1) AND
+                ($2 = '' OR s.class = $2) AND
+                ($3 = '' OR s.section = $3) AND
+                ($4 = '' OR s.parent_name ILIKE $4) AND
+                ($5 = '' OR s.admission_number = $5);
+        `;
+
+        const values = [
+            name ? `%${name}%` : '',
+            studentClass,
+            section,
+            parent_name ? `%${parent_name}%` : '',
+            admission_number
+        ];
+
+        const result = await client.query(query, values);
+
         res.json(result.rows);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
-    }
-};
-
-export const getNotice = async (req, res) => {
-    const client = await pool.connect();
-    try {
-        const student = await client.query("SELECT * FROM notices");
-        res.json(student.rows);
-    } catch (error) {
+        console.error("Error fetching students:", error);
         res.status(500).json({ error: "Internal Server Error" });
     } finally {
         client.release();
@@ -97,71 +130,6 @@ export const getSpecificParentProfile = async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error("Error fetching parent profile:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
-    }
-};
-
-export const getSpecificCalendar = async (req, res) => {
-    const client = await pool.connect();
-    try {
-        const { month = '' } = req.body;
-
-        const result = await client.query(
-            `SELECT * FROM calendar
-             WHERE ($1 = '' OR month ILIKE $1)
-             ORDER BY year,
-                CASE 
-                    WHEN month = 'January' THEN 1
-                    WHEN month = 'February' THEN 2
-                    WHEN month = 'March' THEN 3
-                    WHEN month = 'April' THEN 4
-                    WHEN month = 'May' THEN 5
-                    WHEN month = 'June' THEN 6
-                    WHEN month = 'July' THEN 7
-                    WHEN month = 'August' THEN 8
-                    WHEN month = 'September' THEN 9
-                    WHEN month = 'October' THEN 10
-                    WHEN month = 'November' THEN 11
-                    WHEN month = 'December' THEN 12
-                END`,
-            [month]
-        );
-
-        res.json(result.rows);
-    } catch (error) {
-        console.error("Error fetching calendar:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
-    }
-};
-
-export const getAllCalendar = async (req, res) => {
-    const client = await pool.connect();
-    try {
-        const result = await client.query(
-            `SELECT * FROM calendar
-             ORDER BY year,
-                CASE 
-                    WHEN month = 'January' THEN 1
-                    WHEN month = 'February' THEN 2
-                    WHEN month = 'March' THEN 3
-                    WHEN month = 'April' THEN 4
-                    WHEN month = 'May' THEN 5
-                    WHEN month = 'June' THEN 6
-                    WHEN month = 'July' THEN 7
-                    WHEN month = 'August' THEN 8
-                    WHEN month = 'September' THEN 9
-                    WHEN month = 'October' THEN 10
-                    WHEN month = 'November' THEN 11
-                    WHEN month = 'December' THEN 12
-                END`
-        );
-        res.json(result.rows);
-    } catch (error) {
-        console.error("Error fetching all calendar data:", error);
         res.status(500).json({ error: "Internal Server Error" });
     } finally {
         client.release();
