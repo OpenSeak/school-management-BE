@@ -214,6 +214,49 @@ export const getFilteredExams = async (req, res) => {
     }
 };
 
+export const insertExam = async (req, res) => {
+    const { class: studentClass, section, subject, exam_date, exam_duration, exam_type } = req.body;
+    const teacherName = req.headers.name;
+    const userRole = req.headers.user;
+  
+    if (!teacherName || userRole !== "teacher") {
+      return res.status(401).json({ error: "Unauthorized or invalid role" });
+    }
+  
+    try {
+      const userResult = await pool.query(
+        `SELECT id FROM users WHERE name = $1 AND role = 'teacher'`,
+        [teacherName]
+      );
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: "Teacher not found in users table" });
+      }
+      const user_id = userResult.rows[0].id;
+      const teacherResult = await pool.query(
+        `SELECT id FROM teachers WHERE user_id = $1`,
+        [user_id]
+      );
+      if (teacherResult.rows.length === 0) {
+        return res.status(404).json({ error: "Teacher not found in teachers table" });
+      }
+      const created_by = teacherResult.rows[0].id;
+      const examInsertResult = await pool.query(
+        `INSERT INTO exams (class, section, subject, exam_date, exam_duration, exam_type, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [studentClass, section, subject, exam_date, exam_duration, exam_type, created_by]
+      );
+  
+      return res.status(201).json({
+        message: "Exam successfully created",
+        exam: examInsertResult.rows[0],
+      });
+    } catch (err) {
+      console.error("Error inserting exam:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
 export const getAssignments = async (req, res) => {
     const client = await pool.connect();
     try {
@@ -260,3 +303,46 @@ export const getAssignments = async (req, res) => {
         client.release();
     }
 };
+
+export const insertAssignment = async (req, res) => {
+    const { class: studentClass, section, title, description, file } = req.body;
+    const teacherName = req.headers.name; 
+    const userRole = req.headers.user;   
+  
+    if (!teacherName || userRole !== "teacher") {
+      return res.status(401).json({ error: "Unauthorized or invalid user role" });
+    }
+  
+    try {
+      const userResult = await pool.query(
+        `SELECT id FROM users WHERE name = $1 AND role = 'teacher'`,
+        [teacherName]
+      );
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: "Teacher not found in users table" });
+      }
+      const user_id = userResult.rows[0].id;
+      const teacherResult = await pool.query(
+        `SELECT id, specialised_subject FROM teachers WHERE user_id = $1`,
+        [user_id]
+      );
+      if (teacherResult.rows.length === 0) {
+        return res.status(404).json({ error: "Teacher not found in teachers table" });
+      }
+      const assigned_by = teacherResult.rows[0].id;
+      const subject = teacherResult.rows[0].specialised_subject;
+      const due_date = new Date().toISOString().split("T")[0];
+      const insertResult = await pool.query(
+        `INSERT INTO assignments (title, description, subject, class, section, assigned_by, due_date, file)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [title, description, subject, studentClass, section, assigned_by, due_date, file]
+      );
+  
+      res.status(201).json({ message: "Assignment added successfully", assignment: insertResult.rows[0] });
+  
+    } catch (err) {
+      console.error("Error inserting assignment:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+}; 
