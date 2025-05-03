@@ -9,6 +9,7 @@ import calendarRoute from "../routes/calendarRouter.js";
 import notesRoute from "../routes/notesRouter.js";
 import classRepresentativeRote from "../routes/classRepresentativeRouter.js"
 import financeRoutes from "../routes/financeRoutes.js"
+import performanceRouters from "../routes/financeRoutes.js"
 
 const app = express();
 app.use(cors());
@@ -23,5 +24,6 @@ app.use("/v1/calendar", calendarRoute);
 app.use("/v1/notes", notesRoute);
 app.use("/v1/classrepresentative", classRepresentativeRote);
 app.use("/v1/finance", financeRoutes);
+app.use("/v1/performance", performanceRouters);
 
 export default app;
