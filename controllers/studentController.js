@@ -313,7 +313,6 @@ export const createPerformance = async (req, res) => {
         return res.status(400).json({ error: "Invalid class or section." });
       }
   
-      // 1. Get class teacher
       const teacherResult = await client.query(
         `SELECT id FROM teachers WHERE assigned_class = $1 AND assigned_section = $2`,
         [targetClass, section]
@@ -327,7 +326,6 @@ export const createPerformance = async (req, res) => {
   
       const class_teacher_id = teacherResult.rows[0].id;
   
-      // 2. Get exams for the class and section
       const examResult = await client.query(
         `SELECT id FROM exams WHERE class = $1 AND section = $2`,
         [targetClass, section]
@@ -341,7 +339,6 @@ export const createPerformance = async (req, res) => {
   
       const examIds = examResult.rows.map(row => row.id);
   
-      // 3. Get students of the class and section
       const studentResult = await client.query(
         `SELECT id FROM students WHERE class = $1 AND section = $2`,
         [targetClass, section]
@@ -357,12 +354,10 @@ export const createPerformance = async (req, res) => {
   
       const insertedPerformances = [];
   
-      // 4. For each exam, check if performance for that class-section already inserted
       for (let i = 0; i < examIds.length; i++) {
         const examId = examIds[i];
         const classPerformanceNo = i + 1;
   
-        // Check if all students in this class-section have their performance already added
         const existingPerformanceResult = await client.query(
           `SELECT COUNT(*) FROM performance
            WHERE class = $1 AND section = $2 AND exam_id = $3`,
@@ -371,10 +366,8 @@ export const createPerformance = async (req, res) => {
   
         const count = parseInt(existingPerformanceResult.rows[0].count);
   
-        // If already inserted once (performance is 1 row per exam/class/section), skip
         if (count > 0) continue;
   
-        // Insert new performance row
         const newPerformance = await client.query(
           `INSERT INTO performance (class, section, class_teacher, class_performance, exam_id)
            VALUES ($1, $2, $3, $4, $5)
@@ -398,6 +391,76 @@ export const createPerformance = async (req, res) => {
   
     } catch (error) {
       console.error("Error creating performance:", error);
+      return res.status(500).json({ error: "Internal server error." });
+    } finally {
+      client.release();
+    }
+  };
+
+  export const createAttendance = async (req, res) => {
+    const client = await pool.connect();
+  
+    try {
+      const { name: headerName, user: headerRole } = req.headers;
+      const { name, class: classNum, section, roll_number, status, date } = req.body;
+  
+      if (!["present", "absent", "medical"].includes(status.toLowerCase())) {
+        return res.status(400).json({ error: "Status must be Present, Absent, or Medical." });
+      }
+  
+      const userResult = await client.query(
+        `SELECT id FROM users WHERE name = $1 AND role = $2`,
+        [headerName, headerRole]
+      );
+  
+      if (userResult.rowCount === 0) {
+        return res.status(404).json({
+          error: `No ${headerRole} found with the name "${headerName}".`,
+        });
+      }
+  
+      const userId = userResult.rows[0].id;
+  
+      const teacherResult = await client.query(
+        `SELECT id FROM teachers WHERE user_id = $1`,
+        [userId]
+      );
+  
+      if (teacherResult.rowCount === 0) {
+        return res.status(404).json({
+          error: `No teacher found linked to user "${headerName}".`,
+        });
+      }
+  
+      const teacherId = teacherResult.rows[0].id;
+  
+      const studentResult = await client.query(
+        `SELECT id FROM students WHERE class = $1 AND section = $2 AND roll_number = $3`,
+        [classNum, section, roll_number]
+      );
+  
+      if (studentResult.rowCount === 0) {
+        return res.status(404).json({
+          error: `No student found in class ${classNum}${section} with roll number ${roll_number}.`,
+        });
+      }
+  
+      const studentId = studentResult.rows[0].id;
+  
+      const insertResult = await client.query(
+        `INSERT INTO attendance (student_id, teacher_id, class, section, date, status)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [studentId, teacherId, classNum, section, date, status]
+      );
+  
+      return res.status(201).json({
+        message: "Attendance recorded successfully.",
+        attendance: insertResult.rows[0],
+      });
+  
+    } catch (error) {
+      console.error("Error adding attendance:", error);
       return res.status(500).json({ error: "Internal server error." });
     } finally {
       client.release();
