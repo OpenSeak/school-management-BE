@@ -1,93 +1,87 @@
-import pool from "../config/db.js";
+import prisma  from "../config/db.js";
 
+// Add a calendar entry
 export const addCalendarEntry = async (req, res) => {
-    const client = await pool.connect();
+    const { month, calendar, year } = req.body;
+
+    if (!month || !calendar || !year) {
+        return res.status(400).json({ error: "Month, calendar image name, and year are required." });
+    }
 
     try {
-        const { month, calendar, year } = req.body;
-
-        if (!month || !calendar || !year) {
-            return res.status(400).json({ error: "Month, calendar image name, and year are required." });
-        }
-
-        const insertQuery = `
-            INSERT INTO calendar (month, calendar, year)
-            VALUES ($1, $2, $3)
-        `;
-
-        await client.query(insertQuery, [month, calendar, year]);
+        await prisma.calendar.create({
+            data: {
+                month,
+                calendar,
+                year: parseInt(year),
+            },
+        });
 
         res.status(201).json({ message: "Calendar entry added successfully." });
-
     } catch (error) {
         console.error("Error adding calendar entry:", error);
         res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
     }
 };
 
+// Get specific calendar by month
 export const getSpecificCalendar = async (req, res) => {
-    const client = await pool.connect();
+    const { month = '' } = req.body;
+
     try {
-        const { month = '' } = req.body;
+        let calendars;
 
-        const result = await client.query(
-            `SELECT * FROM calendar
-             WHERE ($1 = '' OR month ILIKE $1)
-             ORDER BY year,
-                CASE 
-                    WHEN month = 'January' THEN 1
-                    WHEN month = 'February' THEN 2
-                    WHEN month = 'March' THEN 3
-                    WHEN month = 'April' THEN 4
-                    WHEN month = 'May' THEN 5
-                    WHEN month = 'June' THEN 6
-                    WHEN month = 'July' THEN 7
-                    WHEN month = 'August' THEN 8
-                    WHEN month = 'September' THEN 9
-                    WHEN month = 'October' THEN 10
-                    WHEN month = 'November' THEN 11
-                    WHEN month = 'December' THEN 12
-                END`,
-            [month]
-        );
+        if (month.trim() === '') {
+            calendars = await prisma.calendar.findMany();
+        } else {
+            calendars = await prisma.calendar.findMany({
+                where: {
+                    month: {
+                        equals: month,
+                        mode: "insensitive",
+                    },
+                },
+            });
+        }
 
-        res.json(result.rows);
+        // Sort manually by month order and year
+        const monthOrder = {
+            January: 1, February: 2, March: 3, April: 4,
+            May: 5, June: 6, July: 7, August: 8,
+            September: 9, October: 10, November: 11, December: 12,
+        };
+
+        calendars.sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return (monthOrder[a.month] || 13) - (monthOrder[b.month] || 13);
+        });
+
+        res.json(calendars);
     } catch (error) {
         console.error("Error fetching calendar:", error);
         res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
     }
 };
 
+// Get all calendar entries
 export const getAllCalendar = async (req, res) => {
-    const client = await pool.connect();
     try {
-        const result = await client.query(
-            `SELECT * FROM calendar
-             ORDER BY year,
-                CASE 
-                    WHEN month = 'January' THEN 1
-                    WHEN month = 'February' THEN 2
-                    WHEN month = 'March' THEN 3
-                    WHEN month = 'April' THEN 4
-                    WHEN month = 'May' THEN 5
-                    WHEN month = 'June' THEN 6
-                    WHEN month = 'July' THEN 7
-                    WHEN month = 'August' THEN 8
-                    WHEN month = 'September' THEN 9
-                    WHEN month = 'October' THEN 10
-                    WHEN month = 'November' THEN 11
-                    WHEN month = 'December' THEN 12
-                END`
-        );
-        res.json(result.rows);
+        const calendars = await prisma.calendar.findMany();
+
+        const monthOrder = {
+            January: 1, February: 2, March: 3, April: 4,
+            May: 5, June: 6, July: 7, August: 8,
+            September: 9, October: 10, November: 11, December: 12,
+        };
+
+        calendars.sort((a, b) => {
+            if (a.year !== b.year) return a.year - b.year;
+            return (monthOrder[a.month] || 13) - (monthOrder[b.month] || 13);
+        });
+
+        res.json(calendars);
     } catch (error) {
         console.error("Error fetching all calendar data:", error);
         res.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
     }
 };
